@@ -1,0 +1,1 @@
+# load sample data from S&P 500 companies into the database.
