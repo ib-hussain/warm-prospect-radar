@@ -1,18 +1,10 @@
-# take a website as argument and return json data of the website
-from pathlib import Path
+"""Backward-compatible import for the original misspelled module name.
 
+New code should import :mod:`src.scraper.webpage`. This file is retained so the
+requested initial structure and any early imports do not break.
+"""
 
+from src.scraper.webpage import ScrapeError, WebScraper, normalize_url, successful_pages
 
-class WebScraper:
-    def __init__(self, url):
-        self.url = url
+__all__ = ["ScrapeError", "WebScraper", "normalize_url", "successful_pages"]
 
-    def scrape(self):
-        # Implement scraping logic here
-        pass
-
-
-    def return_json(self, path:Path):
-        # fetch path from .env file 
-        # Convert scraped data to JSON format
-        pass

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#e0d2ee">
+  <title>{% block title %}Warm Prospect Radar{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anaheim:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body data-page="{{ active_page|default('') }}">
+  <header class="site-header" id="siteHeader">
+    <div class="navbar shell">
+      <a class="navbar-brand" href="{{ url_for('dashboard') }}" aria-label="Warm Prospect Radar home">
+        <span class="brand-radar" aria-hidden="true"><span></span></span>
+        <span>Warm Prospect <strong>Radar</strong></span>
+      </a>
+
+      <button class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">
+        <span></span><span></span><span></span><span class="sr-only">Toggle navigation</span>
+      </button>
+
+      <nav class="primary-nav" id="primaryNav" aria-label="Primary navigation">
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active_page == 'dashboard' else '' }}">Overview</a>
+        <a href="{{ url_for('businesses') }}" class="{{ 'active' if active_page == 'businesses' else '' }}">Businesses</a>
+        <a href="{{ url_for('acquire') }}" class="{{ 'active' if active_page == 'acquire' else '' }}">Acquire</a>
+        <a href="{{ url_for('progress') }}" class="{{ 'active' if active_page == 'progress' else '' }}">Progress</a>
+      </nav>
+
+      <a class="profile-chip {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('settings_page') }}">
+        <span class="profile-copy">
+          <small>{{ backend_name }} workspace</small>
+          <span>{{ app_user_name }}</span>
+        </span>
+        <span class="avatar" aria-hidden="true">{{ app_user_name[:1]|upper }}</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="flash-stack" aria-live="polite" aria-atomic="true">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="flash flash-{{ category }}" role="status">
+        <span class="flash-dot" aria-hidden="true"></span>
+        <span>{{ message }}</span>
+        <button type="button" class="flash-close" aria-label="Dismiss notification">×</button>
+      </div>
+    {% endfor %}
+  </div>
+
+  <main class="page-shell shell">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer shell">
+    <span>Warm Prospect Radar · scraper-first research workspace</span>
+    <span>{{ current_year }} · Outreach disabled</span>
+  </footer>
+
+  <div class="loading-overlay hidden" id="loadingOverlay" aria-hidden="true" role="status">
+    <div class="loading-card">
+      <div class="radar-loader" aria-hidden="true">
+        <span class="radar-sweep"></span>
+        <span class="radar-ping ping-one"></span>
+        <span class="radar-ping ping-two"></span>
+      </div>
+      <div>
+        <p class="loading-kicker">Acquisition in progress</p>
+        <p class="loading-text" id="loadingText">Opening the source and prioritising company pages…</p>
+      </div>
+      <div class="loading-progress" aria-hidden="true"><span></span></div>
+      <p class="loading-note">This request is synchronous. Keep this tab open while retries and fallbacks run.</p>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+

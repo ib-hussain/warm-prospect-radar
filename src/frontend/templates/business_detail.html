@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ business.name }} · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="detail-heading glass-panel">
+  <div class="detail-identity">
+    <span class="company-mark large">{{ business.name[:2]|upper }}</span>
+    <div><span class="eyebrow">Business record · v{{ snapshots[0].version if snapshots else 1 }}</span><h1>{{ business.name }}</h1><p>{{ business.website|hostname }}{% if business.city or business.country_code %} · {{ [business.city, business.country_code]|select|join(', ') }}{% endif %}</p></div>
+  </div>
+  <div class="detail-actions">
+    {% if business.website %}<a class="btn btn-quiet" href="{{ business.website }}" target="_blank" rel="noopener noreferrer">Open source ↗</a>{% endif %}
+    <form method="post" action="{{ url_for('refresh_business', business_id=business.id) }}" data-loading-form data-loading-message="Refreshing the source, prioritising About pages and checking extraction fallbacks…"><button class="btn btn-primary" type="submit">Refresh record</button></form>
+    <form method="post" action="{{ url_for('archive_business', business_id=business.id) }}" data-confirm="Archive {{ business.name }}? Its snapshots will be retained."><button class="icon-danger" type="submit" aria-label="Archive {{ business.name }}">Archive</button></form>
+  </div>
+</section>
+
+<section class="score-grid">
+  <article class="glass-panel score-card">
+    <div class="score-ring" style="--score: {{ business.prospect_likelihood }}"><span>{{ '%.0f'|format(business.prospect_likelihood) }}<small>%</small></span></div>
+    <div><span class="eyebrow">Reply likelihood</span><h2>Size-weighted accessibility</h2><p>Lower for bigger companies, then adjusted by contactability.</p></div>
+  </article>
+  <article class="glass-panel score-card">
+    <div class="score-ring purple-ring" style="--score: {{ business.prospect_score }}"><span>{{ '%.1f'|format(business.prospect_score) }}</span></div>
+    <div><span class="eyebrow">Prospect score</span><h2>Response + difficulty value</h2><p>Response evidence will dominate after outreach data is enabled.</p></div>
+  </article>
+  <article class="glass-panel score-card slim-score">
+    <div><span class="eyebrow">Data depth</span><strong class="large-number">{{ '%.0f'|format(business.data_completeness) }}%</strong><span class="full-meter"><i style="--value: {{ business.data_completeness }}%"></i></span><p>Coverage across ten core research fields.</p></div>
+  </article>
+</section>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    <section class="glass-panel content-panel">
+      <div class="section-heading"><div><span class="eyebrow">Profile</span><h2>Company overview</h2></div><span class="pill">{{ business.gics_sector_code or 'GICS pending' }}</span></div>
+      <p class="description-copy">{{ business.description or 'No reliable company description was extracted from the current sources.' }}</p>
+      <dl class="fact-grid">
+        <div><dt>Legal name</dt><dd>{{ business.legal_name or '—' }}</dd></div>
+        <div><dt>Founded</dt><dd>{{ business.founded_year or '—' }}</dd></div>
+        <div><dt>Employees</dt><dd>{{ '{:,}'.format(business.employee_count) if business.employee_count is not none else '—' }}</dd></div>
+        <div><dt>Employee band</dt><dd>{{ business.employee_band or '—' }}</dd></div>
+        <div><dt>GICS sector</dt><dd>{{ business.gics_sector or '—' }}</dd></div>
+        <div><dt>Industry group</dt><dd>{{ business.gics_industry_group_code or '—' }} · {{ business.gics_industry_group or 'Unclassified' }}</dd></div>
+        <div><dt>Industry</dt><dd>{{ business.gics_industry_code or '—' }} · {{ business.gics_industry or 'Unclassified' }}</dd></div>
+        <div><dt>Sub-industry</dt><dd>{{ business.gics_sub_industry_code or '—' }} · {{ business.gics_sub_industry or 'Unclassified' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="glass-panel content-panel">
+      <div class="section-heading"><div><span class="eyebrow">Evidence</span><h2>Contacts and public profiles</h2></div><span class="pill">{{ business.contacts|length + business.social_profiles|length }} observations</span></div>
+      <div class="evidence-columns">
+        <div><h3>Contact points</h3>{% if business.contacts %}<ul class="evidence-list">{% for contact in business.contacts %}<li><span class="evidence-icon">{{ '@' if contact.kind == 'email' else '☎' }}</span><div><strong>{{ contact.value }}</strong><small>{{ contact.kind }} · {{ '%.0f'|format(contact.confidence * 100) }}% confidence</small></div></li>{% endfor %}</ul>{% else %}<p class="muted">No public contact details observed.</p>{% endif %}</div>
+        <div><h3>Social profiles</h3>{% if business.social_profiles %}<ul class="evidence-list">{% for profile in business.social_profiles %}<li><span class="evidence-icon">{{ profile.platform.value[:1]|upper }}</span><div><a href="{{ profile.url }}" target="_blank" rel="noopener noreferrer"><strong>{{ profile.platform.value|title }}</strong></a><small>{{ profile.handle or profile.url|hostname }} · {{ '%.0f'|format(profile.confidence * 100) }}% confidence</small></div></li>{% endfor %}</ul>{% else %}<p class="muted">No linked social profiles observed.</p>{% endif %}</div>
+      </div>
+    </section>
+
+    <section class="glass-panel content-panel">
+      <div class="section-heading"><div><span class="eyebrow">Classification</span><h2>Products, technology and keywords</h2></div></div>
+      <div class="tag-section"><h3>Products & services</h3><div class="tag-cloud">{% for item in business.products_services %}<span>{{ item }}</span>{% else %}<em>Waiting for evidence</em>{% endfor %}</div></div>
+      <div class="tag-section"><h3>Technologies</h3><div class="tag-cloud">{% for item in business.technologies %}<span>{{ item }}</span>{% else %}<em>Waiting for evidence</em>{% endfor %}</div></div>
+      <div class="tag-section"><h3>Keywords</h3><div class="tag-cloud">{% for item in business.keywords %}<span>{{ item }}</span>{% else %}<em>Waiting for evidence</em>{% endfor %}</div></div>
+    </section>
+  </div>
+
+  <aside class="detail-side">
+    <section class="glass-panel content-panel sticky-panel">
+      <div class="section-heading compact"><div><span class="eyebrow">Score logic</span><h2>Why this score?</h2></div></div>
+      {% set score = business.score_explanation %}
+      <div class="factor-list">
+        <div><span>Size accessibility</span><strong>{{ score.get('size_accessibility', 0) }}</strong></div>
+        <div><span>Contactability</span><strong>{{ score.get('contactability', 0) }}</strong></div>
+        <div><span>Response strength</span><strong>{{ score.get('response_strength', 0) }}</strong></div>
+        <div><span>Difficulty value</span><strong>{{ score.get('difficulty_value', 0) }}</strong></div>
+      </div>
+      <ol class="explanation-list">{% for line in score.get('explanation', []) %}<li>{{ line }}</li>{% else %}<li>The score will be recalculated after the next refresh.</li>{% endfor %}</ol>
+    </section>
+
+    <section class="glass-panel content-panel">
+      <div class="section-heading compact"><div><span class="eyebrow">Snapshots</span><h2>Version history</h2></div><span class="pill">{{ snapshots|length }}</span></div>
+      {% if snapshots %}<ul class="snapshot-list">{% for snapshot in snapshots %}<li><div><strong>Version {{ snapshot.version }}</strong><small>{{ snapshot.created_at|friendly_time }} · {{ snapshot.raw_manifest.get('page_count', 0) }} pages</small></div>{% if snapshot.local_path %}<a href="{{ url_for('download_snapshot', business_id=business.id, snapshot_id=snapshot.id) }}" aria-label="Download snapshot version {{ snapshot.version }}">↓</a>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="muted">No snapshots recorded.</p>{% endif %}
+    </section>
+  </aside>
+</div>
+
+<section class="glass-panel table-card history-card">
+  <div class="section-heading table-heading"><div><span class="eyebrow">Acquisition history</span><h2>Recent runs for {{ business.name }}</h2></div></div>
+  {% if runs %}<div class="table-wrap"><table><thead><tr><th>Started</th><th>Status</th><th>Pages</th><th>Renderer fallbacks</th><th>Extractor</th><th>Warnings</th></tr></thead><tbody>{% for run in runs %}<tr><td>{{ run.started_at|friendly_time }}</td><td><span class="status-pill status-{{ run.status.value }}">{{ run.status.value }}</span></td><td>{{ run.pages_succeeded }}/{{ run.pages_attempted }}</td><td>{{ run.renderer_fallbacks }}</td><td>{{ run.extraction_provider }}</td><td>{{ run.warnings|length }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="small-empty"><p>No run history is available.</p></div>{% endif %}
+</section>
+{% endblock %}

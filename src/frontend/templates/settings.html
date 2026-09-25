@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Settings · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><span class="eyebrow">Workspace profile</span><h1>Runtime settings</h1><p>A safe summary of the active backend, extraction providers, acquisition limits and fallbacks.</p></div>
+  <span class="mode-badge"><span class="live-dot"></span> {{ backend_name }} backend</span>
+</section>
+
+<div class="settings-grid">
+  <section class="glass-panel content-panel">
+    <div class="section-heading"><div><span class="eyebrow">Readiness</span><h2>Provider status</h2></div></div>
+    <div class="provider-list">
+      {% for name, provider in providers.items() %}
+        <div class="provider-row"><span class="provider-status {{ 'ready' if provider.ready else 'waiting' }}">{{ '✓' if provider.ready else '·' }}</span><div><strong>{{ name }}</strong><small>{{ provider.detail }}</small></div><span class="pill">{{ 'Ready' if provider.ready else 'Not configured' }}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="glass-panel content-panel">
+    <div class="section-heading"><div><span class="eyebrow">Acquisition policy</span><h2>Active boundaries</h2></div></div>
+    <dl class="settings-list">
+      <div><dt>Maximum pages</dt><dd>{{ settings.scraper_max_pages }}</dd></div>
+      <div><dt>Maximum depth</dt><dd>{{ settings.scraper_max_depth }}</dd></div>
+      <div><dt>Request timeout</dt><dd>{{ settings.scraper_timeout_seconds }} seconds</dd></div>
+      <div><dt>robots.txt</dt><dd>{{ 'Respected' if settings.scraper_respect_robots else 'Disabled' }}</dd></div>
+      <div><dt>JavaScript fallback</dt><dd>{{ 'Enabled' if settings.scraper_js_fallback else 'Disabled' }}</dd></div>
+      <div><dt>Browser binary</dt><dd>{{ settings.playwright_executable_path or 'Playwright-managed Chromium' }}</dd></div>
+      <div><dt>Public social fallback</dt><dd>{{ 'Enabled' if settings.allow_public_social_fallback else 'Disabled' }}</dd></div>
+      <div><dt>Social profile limit</dt><dd>{{ settings.scraper_social_profile_limit }}</dd></div>
+      <div><dt>Manual refresh</dt><dd>Enabled</dd></div>
+    </dl>
+  </section>
+
+  <section class="glass-panel content-panel full-span">
+    <div class="section-heading"><div><span class="eyebrow">Configuration</span><h2>Environment variables</h2></div><span class="pill">Secrets hidden</span></div>
+    <p class="muted">Edit <code>.env</code> and restart the Flask process. The interface never renders API keys or database credentials.</p>
+    <div class="env-grid">
+      <code>SUPABASE_URL</code><code>SUPABASE_KEY</code><code>OLLAMA_BASE_URL</code><code>OLLAMA_MODEL</code><code>TOGETHER_API_KEY</code><code>PLAYWRIGHT_EXECUTABLE_PATH</code><code>SCRAPER_MAX_PAGES</code><code>SCRAPER_MAX_DEPTH</code><code>ALLOW_PUBLIC_SOCIAL_FALLBACK</code>
+    </div>
+    <div class="security-note"><span aria-hidden="true">!</span><p><strong>Development security boundary</strong>No Row Level Security was requested for this version. Keep the Flask app on a trusted network, never expose a Supabase service-role key to browser code, and add authentication plus RLS before public deployment.</p></div>
+  </section>
+</div>
+{% endblock %}

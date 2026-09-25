@@ -1,4 +1,0 @@
-- acquisition/scraping
-- reach out and maintain data/ comment on social media and grab attention and reach 
-- marketing but we decide later
-- 4th step we will decide bestie

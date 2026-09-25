@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Progress · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><span class="eyebrow">Run ledger</span><h1>Acquisition progress</h1><p>Every request remains visible, including partial results, renderer fallbacks, warnings and failures.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('acquire') }}">New run <span aria-hidden="true">＋</span></a>
+</section>
+
+{% set completed = runs|selectattr('status.value', 'equalto', 'completed')|list|length %}
+{% set partial = runs|selectattr('status.value', 'equalto', 'partial')|list|length %}
+{% set failed = runs|selectattr('status.value', 'equalto', 'failed')|list|length %}
+<section class="run-summary-grid">
+  <article class="glass-panel"><span>Total runs</span><strong>{{ runs|length }}</strong><small>retained in the ledger</small></article>
+  <article class="glass-panel"><span>Completed</span><strong>{{ completed }}</strong><small>without acquisition warnings</small></article>
+  <article class="glass-panel"><span>Partial</span><strong>{{ partial }}</strong><small>saved with useful evidence</small></article>
+  <article class="glass-panel"><span>Failed</span><strong>{{ failed }}</strong><small>diagnostics retained</small></article>
+</section>
+
+<section class="glass-panel table-card">
+  <div class="section-heading table-heading"><div><span class="eyebrow">Run history</span><h2>Newest first</h2></div><span class="pill">{{ runs|length }} entries</span></div>
+  {% if runs %}
+  <div class="table-wrap"><table class="run-table"><thead><tr><th>Source</th><th>Status</th><th>Started</th><th>Finished</th><th>Pages</th><th>JS fallback</th><th>Extractor</th><th>Diagnostics</th></tr></thead><tbody>
+  {% for run in runs %}<tr>
+    <td><div class="source-cell"><strong>{{ run.requested_url|hostname }}</strong><small title="{{ run.requested_url }}">{{ run.requested_url }}</small></div></td>
+    <td><span class="status-pill status-{{ run.status.value }}">{{ run.status.value }}</span></td>
+    <td>{{ run.started_at|friendly_time }}</td><td>{{ run.finished_at|friendly_time }}</td>
+    <td><strong>{{ run.pages_succeeded }}</strong> / {{ run.pages_attempted }}</td><td>{{ run.renderer_fallbacks }}</td><td>{{ run.extraction_provider }}</td>
+    <td>{% if run.errors %}<details class="diagnostic"><summary>{{ run.errors|length }} error{{ '' if run.errors|length == 1 else 's' }}</summary><ul>{% for item in run.errors %}<li>{{ item }}</li>{% endfor %}</ul></details>{% elif run.warnings %}<details class="diagnostic warning"><summary>{{ run.warnings|length }} warning{{ '' if run.warnings|length == 1 else 's' }}</summary><ul>{% for item in run.warnings %}<li>{{ item }}</li>{% endfor %}</ul></details>{% else %}<span class="clean-run">Clean</span>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<div class="empty-state compact-empty"><div class="empty-radar" aria-hidden="true"></div><h3>No runs yet</h3><p>Your first acquisition will create a complete run record here.</p><a class="btn btn-primary" href="{{ url_for('acquire') }}">Start acquisition</a></div>{% endif %}
+</section>
+{% endblock %}
+

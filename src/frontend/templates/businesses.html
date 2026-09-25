@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Businesses · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><span class="eyebrow">Business radar</span><h1>Acquired businesses</h1><p>Search structured records, compare explainable scores, and open their source history.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('acquire') }}">Add signal <span aria-hidden="true">＋</span></a>
+</section>
+
+<section class="glass-panel filter-panel">
+  <form class="filter-form" method="get" action="{{ url_for('businesses') }}">
+    <label class="search-field">
+      <span class="sr-only">Search businesses</span>
+      <span aria-hidden="true">⌕</span>
+      <input type="search" name="q" value="{{ query }}" placeholder="Search name, description or website">
+    </label>
+    <label class="select-field">
+      <span class="sr-only">Filter by GICS sector</span>
+      <select name="sector">
+        <option value="">All GICS sectors</option>
+        {% for sector in sectors %}<option value="{{ sector }}" {{ 'selected' if sector == selected_sector else '' }}>{{ sector }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-secondary" type="submit">Apply filters</button>
+    {% if query or selected_sector %}<a class="text-link clear-filter" href="{{ url_for('businesses') }}">Clear</a>{% endif %}
+    <span class="result-count">{{ businesses|length }} result{{ '' if businesses|length == 1 else 's' }}</span>
+  </form>
+</section>
+
+<section class="glass-panel table-card">
+  {% if businesses %}
+  <div class="table-wrap">
+    <table class="business-table">
+      <thead><tr><th>Business</th><th>GICS sector</th><th>Company size</th><th>Likelihood</th><th>Score</th><th>Data depth</th><th>Updated</th><th><span class="sr-only">Open</span></th></tr></thead>
+      <tbody>
+      {% for business in businesses %}
+        <tr>
+          <td><a class="business-cell" href="{{ url_for('business_detail', business_id=business.id) }}"><span class="company-mark">{{ business.name[:2]|upper }}</span><span><strong>{{ business.name }}</strong><small>{{ business.website|hostname }}</small></span></a></td>
+          <td><span class="sector-cell"><small>{{ business.gics_sector_code or '—' }}</small>{{ business.gics_sector or 'Unclassified' }}</span></td>
+          <td><strong>{{ '{:,}'.format(business.employee_count) if business.employee_count is not none else 'Unknown' }}</strong><small class="cell-note">{{ business.employee_band or 'No band' }}</small></td>
+          <td><div class="meter-row"><span class="mini-meter"><i style="--value: {{ business.prospect_likelihood }}%"></i></span><strong>{{ '%.0f'|format(business.prospect_likelihood) }}%</strong></div></td>
+          <td><span class="score-number">{{ '%.1f'|format(business.prospect_score) }}</span></td>
+          <td><div class="meter-row"><span class="mini-meter pale"><i style="--value: {{ business.data_completeness }}%"></i></span><strong>{{ '%.0f'|format(business.data_completeness) }}%</strong></div></td>
+          <td><time>{{ business.updated_at|friendly_time }}</time></td>
+          <td><a class="row-arrow" href="{{ url_for('business_detail', business_id=business.id) }}" aria-label="Open {{ business.name }}">→</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty-state compact-empty"><div class="empty-radar" aria-hidden="true"></div><h3>No businesses match</h3><p>Adjust the filters or acquire a new company source.</p><a class="btn btn-primary" href="{{ url_for('acquire') }}">Acquire a business</a></div>
+  {% endif %}
+</section>
+{% endblock %}
+
