@@ -1,8 +1,14 @@
-"""Generic outreach placeholder; all external actions are disabled."""
+"""Generic outreach convenience functions."""
 
-from src.outreach import disabled_for_current_milestone
+from src.models import BusinessRecord, OutreachChannel, OutreachDraft
+from src.outreach.service import OutreachService
 
 
-def create_other_draft(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+def create_other_draft(
+    service: OutreachService, business: BusinessRecord, **kwargs: object
+) -> OutreachDraft:
+    return service.create_draft(business, OutreachChannel.OTHER, **kwargs)
 
+
+def deliver_other(service: OutreachService, draft: OutreachDraft) -> OutreachDraft:
+    return service.deliver(draft)

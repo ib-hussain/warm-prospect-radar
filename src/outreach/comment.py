@@ -1,12 +1,14 @@
-"""Social comment placeholder; publishing is intentionally disabled."""
+"""Social-comment-specific convenience functions."""
 
-from src.outreach import disabled_for_current_milestone
-
-
-def create_comment_draft(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+from src.models import BusinessRecord, OutreachChannel, OutreachDraft
+from src.outreach.service import OutreachService
 
 
-def publish_comment(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+def create_comment_draft(
+    service: OutreachService, business: BusinessRecord, **kwargs: object
+) -> OutreachDraft:
+    return service.create_draft(business, OutreachChannel.COMMENT, **kwargs)
 
+
+def publish_comment(service: OutreachService, draft: OutreachDraft) -> OutreachDraft:
+    return service.deliver(draft)

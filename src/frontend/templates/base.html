@@ -29,15 +29,17 @@
         <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active_page == 'dashboard' else '' }}">Overview</a>
         <a href="{{ url_for('businesses') }}" class="{{ 'active' if active_page == 'businesses' else '' }}">Businesses</a>
         <a href="{{ url_for('acquire') }}" class="{{ 'active' if active_page == 'acquire' else '' }}">Acquire</a>
+        <a href="{{ url_for('outreach') }}" class="{{ 'active' if active_page == 'outreach' else '' }}">Outreach</a>
+        <a href="{{ url_for('assistant_page') }}" class="{{ 'active' if active_page == 'assistant' else '' }}">Assistant</a>
         <a href="{{ url_for('progress') }}" class="{{ 'active' if active_page == 'progress' else '' }}">Progress</a>
       </nav>
 
       <a class="profile-chip {{ 'active' if active_page == 'settings' else '' }}" href="{{ url_for('settings_page') }}">
         <span class="profile-copy">
           <small>{{ backend_name }} workspace</small>
-          <span>{{ app_user_name }}</span>
+          <span>Central controls</span>
         </span>
-        <span class="avatar" aria-hidden="true">{{ app_user_name[:1]|upper }}</span>
+        <span class="avatar" aria-hidden="true">C</span>
       </a>
     </div>
   </header>
@@ -57,8 +59,8 @@
   </main>
 
   <footer class="site-footer shell">
-    <span>Warm Prospect Radar · scraper-first research workspace</span>
-    <span>{{ current_year }} · Outreach disabled</span>
+    <span>Warm Prospect Radar · central acquisition and outreach workspace</span>
+    <span>{{ current_year }} · {{ delivery_mode|replace('_', ' ')|title }} delivery mode</span>
   </footer>
 
   <div class="loading-overlay hidden" id="loadingOverlay" aria-hidden="true" role="status">
@@ -81,4 +83,3 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
-

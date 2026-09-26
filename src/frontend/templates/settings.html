@@ -2,11 +2,36 @@
 {% block title %}Settings · Warm Prospect Radar{% endblock %}
 {% block content %}
 <section class="page-heading">
-  <div><span class="eyebrow">Workspace profile</span><h1>Runtime settings</h1><p>A safe summary of the active backend, extraction providers, acquisition limits and fallbacks.</p></div>
+  <div><span class="eyebrow">Central workspace</span><h1>Runtime settings</h1><p>Global feature switches, provider readiness, acquisition limits and delivery safeguards. There are no application users or per-user records.</p></div>
   <span class="mode-badge"><span class="live-dot"></span> {{ backend_name }} backend</span>
 </section>
 
 <div class="settings-grid">
+  <section class="glass-panel content-panel full-span">
+    <div class="section-heading"><div><span class="eyebrow">Global switches</span><h2>Feature controls</h2></div><span class="pill">Shared by everyone</span></div>
+    <form method="post" action="{{ url_for('update_feature_flags') }}" class="feature-control-form">
+      <div class="feature-toggle-grid">
+        {% set controls = [
+          ('acquisition_enabled', 'Acquisition', 'Manual website and Wikipedia crawl runs.'),
+          ('social_acquisition_enabled', 'Social acquisition', 'Official APIs plus bounded public-page fallback.'),
+          ('llm_enabled', 'LLM enrichment', 'Ollama first with Together AI fallback.'),
+          ('outreach_enabled', 'Outreach workflow', 'Draft, edit, approval and interaction tracking.'),
+          ('chatbot_enabled', 'Data assistant', 'Grounded questions over central business records.'),
+          ('scheduled_refresh_enabled', 'Daily refresh', 'Background or manual full-workspace refresh cycle.'),
+          ('external_delivery_enabled', 'External delivery', 'Approved items only; obeys the delivery mode below.')
+        ] %}
+        {% for field, label, detail in controls %}
+          <label class="feature-toggle">
+            <span><strong>{{ label }}</strong><small>{{ detail }}</small></span>
+            <input type="checkbox" name="{{ field }}" {{ 'checked' if flags|attr(field) else '' }}>
+            <i aria-hidden="true"></i>
+          </label>
+        {% endfor %}
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Save central controls</button><small>Changes apply to every browser using this database.</small></div>
+    </form>
+  </section>
+
   <section class="glass-panel content-panel">
     <div class="section-heading"><div><span class="eyebrow">Readiness</span><h2>Provider status</h2></div></div>
     <div class="provider-list">
@@ -27,17 +52,22 @@
       <div><dt>Browser binary</dt><dd>{{ settings.playwright_executable_path or 'Playwright-managed Chromium' }}</dd></div>
       <div><dt>Public social fallback</dt><dd>{{ 'Enabled' if settings.allow_public_social_fallback else 'Disabled' }}</dd></div>
       <div><dt>Social profile limit</dt><dd>{{ settings.scraper_social_profile_limit }}</dd></div>
-      <div><dt>Manual refresh</dt><dd>Enabled</dd></div>
+      <div><dt>Manual refresh</dt><dd>{{ 'Enabled' if flags.acquisition_enabled else 'Disabled' }}</dd></div>
+      <div><dt>Scheduled refresh</dt><dd>Every {{ settings.scheduler_interval_hours }} hours</dd></div>
+      <div><dt>Scheduler worker</dt><dd>{{ 'Running in web container' if scheduler_running else 'Standalone/manual' }}</dd></div>
+      <div><dt>Delivery mode</dt><dd>{{ settings.outreach_delivery_mode|replace('_', ' ')|title }}</dd></div>
     </dl>
+    <form method="post" action="{{ url_for('run_scheduler_now') }}" data-loading-form data-loading-message="Refreshing eligible businesses in the central workspace…"><button class="btn btn-quiet" type="submit" {{ 'disabled' if not flags.scheduled_refresh_enabled else '' }}>Run refresh cycle now</button></form>
   </section>
 
   <section class="glass-panel content-panel full-span">
     <div class="section-heading"><div><span class="eyebrow">Configuration</span><h2>Environment variables</h2></div><span class="pill">Secrets hidden</span></div>
     <p class="muted">Edit <code>.env</code> and restart the Flask process. The interface never renders API keys or database credentials.</p>
     <div class="env-grid">
-      <code>SUPABASE_URL</code><code>SUPABASE_KEY</code><code>OLLAMA_BASE_URL</code><code>OLLAMA_MODEL</code><code>TOGETHER_API_KEY</code><code>PLAYWRIGHT_EXECUTABLE_PATH</code><code>SCRAPER_MAX_PAGES</code><code>SCRAPER_MAX_DEPTH</code><code>ALLOW_PUBLIC_SOCIAL_FALLBACK</code>
+      <code>SUPABASE_URL</code><code>SUPABASE_SECRET_KEY</code><code>OLLAMA_BASE_URL</code><code>OLLAMA_MODEL</code><code>TOGETHER_API_KEY</code><code>PLAYWRIGHT_EXECUTABLE_PATH</code><code>SCRAPER_MAX_PAGES</code><code>SCRAPER_MAX_DEPTH</code><code>ALLOW_PUBLIC_SOCIAL_FALLBACK</code><code>OUTREACH_DELIVERY_MODE</code><code>SMTP_HOST</code><code>OUTREACH_WEBHOOK_URL</code><code>SCHEDULER_RUN_IN_WEB</code>
     </div>
-    <div class="security-note"><span aria-hidden="true">!</span><p><strong>Development security boundary</strong>No Row Level Security was requested for this version. Keep the Flask app on a trusted network, never expose a Supabase service-role key to browser code, and add authentication plus RLS before public deployment.</p></div>
+    <div class="security-note"><span aria-hidden="true">!</span><p><strong>Central, userless security boundary</strong>No login, user ownership or Row Level Security is used. Anyone who can reach this Flask service can view records and change global feature controls. Keep it on a trusted network, never expose a Supabase service-role key to browser code, and use a reverse proxy or network access controls before internet exposure.</p></div>
+    <div class="security-note"><span aria-hidden="true">i</span><p><strong>Safe testing default</strong><code>OUTREACH_DELIVERY_MODE=dry_run</code> exercises approval and delivery state changes without sending externally. Switch to <code>live</code> only after configuring SMTP or an authorised webhook integration.</p></div>
   </section>
 </div>
 {% endblock %}

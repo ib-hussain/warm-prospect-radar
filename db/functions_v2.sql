@@ -16,15 +16,17 @@ create trigger businesses_set_updated_at
 before update on public.businesses
 for each row execute function public.set_updated_at();
 
-drop trigger if exists app_users_set_updated_at on public.app_users;
-create trigger app_users_set_updated_at
-before update on public.app_users
+drop trigger if exists feature_flags_set_updated_at on public.workspace_feature_flags;
+create trigger feature_flags_set_updated_at
+before update on public.workspace_feature_flags
 for each row execute function public.set_updated_at();
 
-create or replace function public.archive_business(
-  p_business_id uuid,
-  p_actor_user_id uuid default null
-)
+drop trigger if exists outreach_drafts_set_updated_at on public.outreach_drafts;
+create trigger outreach_drafts_set_updated_at
+before update on public.outreach_drafts
+for each row execute function public.set_updated_at();
+
+create or replace function public.archive_business(p_business_id uuid)
 returns boolean
 language plpgsql
 as $$
@@ -40,13 +42,15 @@ begin
     return false;
   end if;
 
-  update public.businesses set archived_at = now(), updated_by = p_actor_user_id where id = p_business_id;
+  update public.businesses set archived_at = now() where id = p_business_id;
   update public.business_websites set archived_at = now() where business_id = p_business_id and archived_at is null;
   update public.business_contacts set archived_at = now() where business_id = p_business_id and archived_at is null;
   update public.business_social_profiles set archived_at = now() where business_id = p_business_id and archived_at is null;
+  update public.prospect_interactions set archived_at = now() where business_id = p_business_id and archived_at is null;
+  update public.outreach_drafts set archived_at = now() where business_id = p_business_id and archived_at is null;
 
-  insert into public.audit_events (actor_user_id, entity_type, entity_id, action, before_state, after_state)
-  select p_actor_user_id, 'business', p_business_id, 'archive', previous_row, to_jsonb(b)
+  insert into public.audit_events (entity_type, entity_id, action, before_state, after_state)
+  select 'business', p_business_id, 'archive', previous_row, to_jsonb(b)
   from public.businesses b where b.id = p_business_id;
   return true;
 end;
@@ -66,7 +70,7 @@ with base as (
     b.*,
     (select count(*) from public.business_contacts c where c.business_id = b.id and c.archived_at is null) as contact_count,
     (select count(*) from public.business_social_profiles s where s.business_id = b.id and s.archived_at is null) as social_count,
-    (select count(*) from public.prospect_interactions i where i.business_id = b.id and i.archived_at is null and i.kind in ('email_sent','message_sent','comment_posted')) as attempts,
+    (select count(*) from public.prospect_interactions i where i.business_id = b.id and i.archived_at is null and i.kind in ('email_sent','message_sent','comment_posted','post_published')) as attempts,
     (select count(*) from public.prospect_interactions i where i.business_id = b.id and i.archived_at is null and i.kind in ('reply_received','positive_reply','negative_reply')) as replies,
     (select count(*) from public.prospect_interactions i where i.business_id = b.id and i.archived_at is null and i.kind = 'positive_reply') as positive_replies
   from public.businesses b where b.id = p_business_id
@@ -152,7 +156,6 @@ $$;
 create or replace function public.record_prospect_interaction(
   p_business_id uuid,
   p_kind public.interaction_kind,
-  p_actor_user_id uuid default null,
   p_channel text default null,
   p_summary text default null,
   p_metadata jsonb default '{}'::jsonb
@@ -164,9 +167,9 @@ declare
   new_id uuid;
 begin
   insert into public.prospect_interactions (
-    business_id, actor_user_id, kind, channel, summary, metadata
+    business_id, kind, channel, summary, metadata
   ) values (
-    p_business_id, p_actor_user_id, p_kind, p_channel, p_summary, p_metadata
+    p_business_id, p_kind, p_channel, p_summary, p_metadata
   ) returning id into new_id;
   perform public.refresh_business_score(p_business_id);
   return new_id;
@@ -200,3 +203,23 @@ select
 from public.businesses b
 where b.archived_at is null;
 
+revoke execute on function public.set_updated_at() from public, anon, authenticated;
+revoke execute on function public.archive_business(uuid) from public, anon, authenticated;
+revoke execute on function public.business_score_components(uuid) from public, anon, authenticated;
+revoke execute on function public.refresh_business_score(uuid) from public, anon, authenticated;
+revoke execute on function public.record_prospect_interaction(
+  uuid, public.interaction_kind, text, text, jsonb
+) from public, anon, authenticated;
+revoke execute on function public.dashboard_summary() from public, anon, authenticated;
+
+grant execute on function public.set_updated_at() to service_role;
+grant execute on function public.archive_business(uuid) to service_role;
+grant execute on function public.business_score_components(uuid) to service_role;
+grant execute on function public.refresh_business_score(uuid) to service_role;
+grant execute on function public.record_prospect_interaction(
+  uuid, public.interaction_kind, text, text, jsonb
+) to service_role;
+grant execute on function public.dashboard_summary() to service_role;
+
+revoke all privileges on table public.business_radar from anon, authenticated;
+grant select on table public.business_radar to service_role;

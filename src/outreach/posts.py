@@ -1,12 +1,14 @@
-"""Social post placeholder; publishing is intentionally disabled."""
+"""Social-post-specific convenience functions."""
 
-from src.outreach import disabled_for_current_milestone
-
-
-def create_post_draft(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+from src.models import BusinessRecord, OutreachChannel, OutreachDraft
+from src.outreach.service import OutreachService
 
 
-def publish_post(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+def create_post_draft(
+    service: OutreachService, business: BusinessRecord, **kwargs: object
+) -> OutreachDraft:
+    return service.create_draft(business, OutreachChannel.SOCIAL_POST, **kwargs)
 
+
+def publish_post(service: OutreachService, draft: OutreachDraft) -> OutreachDraft:
+    return service.deliver(draft)

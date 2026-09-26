@@ -34,6 +34,35 @@ class RunStatus(StrEnum):
     FAILED = "failed"
 
 
+class OutreachChannel(StrEnum):
+    EMAIL = "email"
+    DIRECT_MESSAGE = "direct_message"
+    COMMENT = "comment"
+    SOCIAL_POST = "social_post"
+    PICTURE = "picture"
+    OTHER = "other"
+
+
+class OutreachStatus(StrEnum):
+    DRAFT = "draft"
+    PENDING_APPROVAL = "pending_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
+class InteractionKind(StrEnum):
+    EMAIL_SENT = "email_sent"
+    MESSAGE_SENT = "message_sent"
+    COMMENT_POSTED = "comment_posted"
+    POST_PUBLISHED = "post_published"
+    REPLY_RECEIVED = "reply_received"
+    POSITIVE_REPLY = "positive_reply"
+    NEGATIVE_REPLY = "negative_reply"
+    OTHER = "other"
+
+
 class ContactPoint(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -174,4 +203,62 @@ class BusinessSnapshot(BaseModel):
     local_path: str | None = None
     storage_object_path: str | None = None
     content_hash: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class FeatureFlags(BaseModel):
+    """Central workspace switches shared by every person using the application."""
+
+    acquisition_enabled: bool = True
+    social_acquisition_enabled: bool = True
+    llm_enabled: bool = True
+    outreach_enabled: bool = True
+    chatbot_enabled: bool = True
+    scheduled_refresh_enabled: bool = True
+    external_delivery_enabled: bool = True
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class OutreachDraft(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True, validate_assignment=True)
+
+    id: UUID = Field(default_factory=uuid4)
+    business_id: UUID
+    channel: OutreachChannel
+    target: str | None = Field(default=None, max_length=1000)
+    subject: str | None = Field(default=None, max_length=500)
+    body: str = Field(min_length=1, max_length=50_000)
+    media_prompt: str | None = Field(default=None, max_length=4000)
+    approval_status: OutreachStatus = OutreachStatus.DRAFT
+    provider: str | None = None
+    provider_message_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    reviewed_at: datetime | None = None
+    delivered_at: datetime | None = None
+    archived_at: datetime | None = None
+
+
+class ProspectInteraction(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    id: UUID = Field(default_factory=uuid4)
+    business_id: UUID
+    occurred_at: datetime = Field(default_factory=utc_now)
+    kind: InteractionKind
+    channel: str | None = Field(default=None, max_length=100)
+    summary: str | None = Field(default=None, max_length=5000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    archived_at: datetime | None = None
+
+
+class AssistantExchange(BaseModel):
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    id: UUID = Field(default_factory=uuid4)
+    question: str = Field(min_length=1, max_length=4000)
+    answer: str = Field(min_length=1, max_length=30_000)
+    provider: str = "deterministic"
+    business_ids: list[UUID] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)

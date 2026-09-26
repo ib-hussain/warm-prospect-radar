@@ -2,6 +2,7 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python_path="$project_dir/.venv/bin/python"
 
 if [[ ! -x "$python_path" ]]; then
   echo "Virtual environment not found. Follow the WSL setup in README.md." >&2
@@ -9,5 +10,5 @@ if [[ ! -x "$python_path" ]]; then
 fi
 
 cd "$project_dir"
-python app.py
+exec "$python_path" app.py
 

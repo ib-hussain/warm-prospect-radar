@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from urllib.parse import quote
 
@@ -40,7 +41,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--company", action="append", help="Wikipedia article title; repeatable")
     parser.add_argument("--limit", type=int, default=len(DEFAULT_COMPANIES))
     parser.add_argument("--no-llm", action="store_true", help="Use deterministic extraction only")
-    parser.add_argument("--list-only", action="store_true", help="Print targets without acquiring them")
+    parser.add_argument(
+        "--list-only", action="store_true", help="Print targets without acquiring them"
+    )
     return parser.parse_args()
 
 
@@ -56,6 +59,17 @@ def main() -> int:
 
     settings = Settings.from_env()
     repository = build_repository(settings)
+    flags = repository.get_feature_flags()
+    if not flags.acquisition_enabled:
+        print("Acquisition is disabled in central feature controls.", file=sys.stderr)
+        return 2
+    settings = replace(
+        settings,
+        enable_llm=settings.enable_llm and flags.llm_enabled,
+        scraper_social_profile_limit=(
+            settings.scraper_social_profile_limit if flags.social_acquisition_enabled else 0
+        ),
+    )
     pipeline = BusinessScrapePipeline(settings, repository)
     completed = 0
     print(f"Backend: {repository.backend_name}; targets: {len(companies)}")
@@ -77,4 +91,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

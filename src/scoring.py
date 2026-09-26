@@ -8,8 +8,15 @@ low, matching the initial product hypothesis. Every component is retained for re
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 
-from src.models import BusinessRecord, InteractionSummary, ScoreBreakdown
+from src.models import (
+    BusinessRecord,
+    InteractionKind,
+    InteractionSummary,
+    ProspectInteraction,
+    ScoreBreakdown,
+)
 
 
 def _clamp(value: float, low: float = 0, high: float = 100) -> float:
@@ -45,6 +52,28 @@ def _response_strength(interactions: InteractionSummary) -> float:
     return _clamp((reply_rate * 70 + positive_rate * 30) * (0.5 + 0.5 * evidence))
 
 
+def summarize_interactions(
+    interactions: Iterable[ProspectInteraction],
+) -> InteractionSummary:
+    active = [item for item in interactions if item.archived_at is None]
+    attempt_kinds = {
+        InteractionKind.EMAIL_SENT,
+        InteractionKind.MESSAGE_SENT,
+        InteractionKind.COMMENT_POSTED,
+        InteractionKind.POST_PUBLISHED,
+    }
+    reply_kinds = {
+        InteractionKind.REPLY_RECEIVED,
+        InteractionKind.POSITIVE_REPLY,
+        InteractionKind.NEGATIVE_REPLY,
+    }
+    return InteractionSummary(
+        attempts=sum(item.kind in attempt_kinds for item in active),
+        replies=sum(item.kind in reply_kinds for item in active),
+        positive_replies=sum(item.kind == InteractionKind.POSITIVE_REPLY for item in active),
+    )
+
+
 def calculate_scores(
     business: BusinessRecord, interactions: InteractionSummary | None = None
 ) -> ScoreBreakdown:
@@ -61,7 +90,9 @@ def calculate_scores(
     )
 
     employee_label = (
-        f"{business.employee_count:,} known employees" if business.employee_count is not None else "unknown size"
+        f"{business.employee_count:,} known employees"
+        if business.employee_count is not None
+        else "unknown size"
     )
     explanation = [
         f"Size accessibility is {size_accessibility:.1f}/100 from {employee_label}; larger companies receive lower likelihood.",
@@ -90,4 +121,3 @@ def apply_scores(
     business.prospect_score = breakdown.prospect_score
     business.score_explanation = breakdown.model_dump(mode="json")
     return business
-

@@ -1,12 +1,14 @@
-"""Direct-message outreach placeholder; external actions are disabled."""
+"""Direct-message-specific convenience functions."""
 
-from src.outreach import disabled_for_current_milestone
-
-
-def create_message_draft(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+from src.models import BusinessRecord, OutreachChannel, OutreachDraft
+from src.outreach.service import OutreachService
 
 
-def send_message(*_args: object, **_kwargs: object) -> None:
-    disabled_for_current_milestone()
+def create_message_draft(
+    service: OutreachService, business: BusinessRecord, **kwargs: object
+) -> OutreachDraft:
+    return service.create_draft(business, OutreachChannel.DIRECT_MESSAGE, **kwargs)
 
+
+def send_message(service: OutreachService, draft: OutreachDraft) -> OutreachDraft:
+    return service.deliver(draft)

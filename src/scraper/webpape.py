@@ -7,4 +7,3 @@ requested initial structure and any early imports do not break.
 from src.scraper.webpage import ScrapeError, WebScraper, normalize_url, successful_pages
 
 __all__ = ["ScrapeError", "WebScraper", "normalize_url", "successful_pages"]
-

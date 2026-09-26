@@ -2,7 +2,7 @@ from dataclasses import replace
 
 from src.config import Settings
 from src.database import LocalRepository
-from src.models import PageSnapshot
+from src.models import InteractionKind, PageSnapshot, ProspectInteraction
 from src.scraper.scraper import BusinessScrapePipeline
 
 
@@ -48,12 +48,26 @@ def test_pipeline_saves_and_versions_refresh(monkeypatch, tmp_path):
     pipeline = BusinessScrapePipeline(settings, repository)
 
     first, first_run = pipeline.run("https://acme.example", "Acme Systems")
+    repository.save_interaction(
+        ProspectInteraction(
+            business_id=first.id,
+            kind=InteractionKind.EMAIL_SENT,
+            channel="email",
+        )
+    )
+    repository.save_interaction(
+        ProspectInteraction(
+            business_id=first.id,
+            kind=InteractionKind.POSITIVE_REPLY,
+            channel="email",
+        )
+    )
     second, second_run = pipeline.run("https://acme.example", "Acme Systems")
 
     assert first.id == second.id
     assert first_run.pages_succeeded == 1
     assert second_run.pages_succeeded == 1
+    assert second.score_explanation["response_strength"] > 0
     snapshots = repository.list_snapshots(first.id)
     assert [item.version for item in snapshots] == [2, 1]
     assert all((settings.project_root / item.local_path).is_file() for item in snapshots)
-

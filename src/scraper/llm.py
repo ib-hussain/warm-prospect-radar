@@ -34,6 +34,81 @@ FIELDS = {
 }
 
 
+class TextLLMClient:
+    """Small provider-fallback client used by outreach and the data assistant."""
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
+
+    def _ollama(self, system_prompt: str, user_prompt: str) -> str:
+        response = httpx.post(
+            f"{self.settings.ollama_base_url}/api/generate",
+            json={
+                "model": self.settings.ollama_model,
+                "prompt": f"SYSTEM:\n{system_prompt}\n\nUSER:\n{user_prompt}",
+                "stream": False,
+                "options": {"temperature": 0.2},
+            },
+            timeout=self.settings.llm_timeout_seconds,
+        )
+        response.raise_for_status()
+        answer = str(response.json().get("response", "")).strip()
+        if not answer:
+            raise ValueError("Ollama returned an empty response.")
+        return answer
+
+    def _together(self, system_prompt: str, user_prompt: str) -> str:
+        if not self.settings.together_api_key:
+            raise ValueError("TOGETHER_API_KEY is not configured.")
+        response = httpx.post(
+            "https://api.together.xyz/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.settings.together_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.settings.together_model,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            },
+            timeout=self.settings.llm_timeout_seconds,
+        )
+        response.raise_for_status()
+        choices = response.json().get("choices") or []
+        if not choices:
+            raise ValueError("Together AI returned no completion choices.")
+        answer = str(choices[0].get("message", {}).get("content", "")).strip()
+        if not answer:
+            raise ValueError("Together AI returned an empty response.")
+        return answer
+
+    def complete(self, system_prompt: str, user_prompt: str) -> tuple[str, str, list[str]]:
+        if not self.settings.enable_llm:
+            raise ValueError("LLM capability is disabled by environment configuration.")
+        warnings: list[str] = []
+        for provider in self.settings.llm_provider_order:
+            try:
+                if provider == "ollama":
+                    return (
+                        self._ollama(system_prompt, user_prompt),
+                        (f"ollama:{self.settings.ollama_model}"),
+                        warnings,
+                    )
+                if provider == "together":
+                    return (
+                        self._together(system_prompt, user_prompt),
+                        (f"together:{self.settings.together_model}"),
+                        warnings,
+                    )
+                warnings.append(f"Unknown LLM provider ignored: {provider}")
+            except Exception as exc:
+                warnings.append(f"{provider} completion unavailable: {exc}")
+        raise ValueError("; ".join(warnings) or "No LLM providers are configured.")
+
+
 class LLMExtractor:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -61,7 +136,9 @@ class LLMExtractor:
                 continue
             excerpt = page.text[: min(6000, budget)]
             budget -= len(excerpt)
-            page_blocks.append(f"SOURCE: {page.final_url}\nTITLE: {page.title or ''}\nTEXT:\n{excerpt}")
+            page_blocks.append(
+                f"SOURCE: {page.final_url}\nTITLE: {page.title or ''}\nTEXT:\n{excerpt}"
+            )
         schema = json.dumps(FIELDS, indent=2)
         return (
             "Extract only facts supported by the supplied company pages. "
@@ -126,7 +203,11 @@ class LLMExtractor:
                 if provider == "ollama":
                     return self._ollama(prompt), f"ollama:{self.settings.ollama_model}", warnings
                 if provider == "together":
-                    return self._together(prompt), f"together:{self.settings.together_model}", warnings
+                    return (
+                        self._together(prompt),
+                        f"together:{self.settings.together_model}",
+                        warnings,
+                    )
                 warnings.append(f"Unknown LLM provider ignored: {provider}")
             except Exception as exc:
                 warnings.append(f"{provider} extraction unavailable: {exc}")

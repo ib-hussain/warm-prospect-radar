@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Assistant · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><span class="eyebrow">Central data assistant</span><h1>Ask the radar.</h1><p>Answers are grounded in stored business records and score explanations; source fields are treated as data, never instructions.</p></div>
+  <span class="mode-badge"><span class="live-dot"></span> {{ 'LLM + deterministic fallback' if feature_flags.llm_enabled else 'Deterministic mode' }}</span>
+</section>
+
+<div class="assistant-layout">
+  <section class="glass-panel content-panel assistant-console">
+    <form method="post" action="{{ url_for('assistant_page') }}" class="assistant-form" data-loading-form data-loading-message="Selecting relevant central records and grounding the answer…">
+      <label class="field-label" for="assistantQuestion">Question about your prospects</label>
+      <textarea class="text-input" id="assistantQuestion" name="question" rows="4" required placeholder="Which businesses have the highest prospect score, and why?"></textarea>
+      <div class="prompt-chips"><button type="button" data-question="Which businesses have the highest prospect score, and why?">Top prospects</button><button type="button" data-question="Which companies have public email contacts?">Email-ready</button><button type="button" data-question="Summarise the businesses in the Industrials sector.">Sector summary</button></div>
+      <button class="btn btn-primary" type="submit">Ask assistant</button>
+    </form>
+    {% if selected %}
+      <article class="assistant-answer"><div class="answer-meta"><span class="provider-status ready">AI</span><span><strong>Grounded answer</strong><small>{{ selected.provider }} · {{ selected.created_at|friendly_time }}</small></span></div><div class="answer-copy">{{ selected.answer }}</div></article>
+    {% endif %}
+  </section>
+
+  <aside class="glass-panel content-panel">
+    <div class="section-heading"><div><span class="eyebrow">Shared history</span><h2>Recent questions</h2></div><span class="pill">{{ exchanges|length }}</span></div>
+    {% if exchanges %}<ol class="question-history">{% for exchange in exchanges %}<li><strong>{{ exchange.question }}</strong><small>{{ exchange.provider }} · {{ exchange.created_at|friendly_time }}</small><p>{{ exchange.answer|truncate(180) }}</p></li>{% endfor %}</ol>{% else %}<div class="small-empty"><p>No questions yet.</p><span>Conversation history is shared across this central workspace.</span></div>{% endif %}
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/assistant.js') }}" defer></script>{% endblock %}

@@ -36,7 +36,11 @@ GICS_RULES = (
     ("30", "Consumer Staples", ("food", "beverage", "household", "tobacco", "grocery")),
     ("35", "Health Care", ("health", "pharma", "biotech", "medical", "hospital")),
     ("40", "Financials", ("bank", "finance", "insurance", "capital markets", "investment")),
-    ("45", "Information Technology", ("software", "technology", "semiconductor", "computer", "it services")),
+    (
+        "45",
+        "Information Technology",
+        ("software", "technology", "semiconductor", "computer", "it services"),
+    ),
     ("50", "Communication Services", ("telecom", "media", "entertainment", "interactive")),
     ("55", "Utilities", ("utility", "electricity", "water", "renewable")),
     ("60", "Real Estate", ("real estate", "reit", "property")),
@@ -215,7 +219,14 @@ def _social_profiles(pages: list[PageSnapshot]) -> list[SocialProfile]:
     for page in pages:
         for link in page.links:
             host = (urlsplit(link).hostname or "").removeprefix("www.").lower()
-            platform = next((value for key, value in SOCIAL_HOSTS.items() if host == key or host.endswith(f".{key}")), None)
+            platform = next(
+                (
+                    value
+                    for key, value in SOCIAL_HOSTS.items()
+                    if host == key or host.endswith(f".{key}")
+                ),
+                None,
+            )
             if not platform:
                 continue
             clean = link.split("?", 1)[0].rstrip("/")
@@ -244,7 +255,9 @@ def deterministic_extract(
         raise ValueError("No successfully acquired page contained extractable text.")
     combined = "\n".join(page.text for page in successful)
     emails = _dedupe(match.group(1) for match in EMAIL_PATTERN.finditer(combined))[:20]
-    phones = _dedupe(re.sub(r"\s+", " ", match.group(1)) for match in PHONE_PATTERN.finditer(combined))[:20]
+    phones = _dedupe(
+        re.sub(r"\s+", " ", match.group(1)) for match in PHONE_PATTERN.finditer(combined)
+    )[:20]
     contacts = [ContactPoint(kind="email", value=email, confidence=0.9) for email in emails]
     contacts.extend(ContactPoint(kind="phone", value=phone, confidence=0.65) for phone in phones)
     founded = YEAR_PATTERN.search(combined)
@@ -279,7 +292,9 @@ def deterministic_extract(
         legal_name=str(structured["legal_name"])[:200] if structured.get("legal_name") else None,
         description=_description(successful),
         website=website,
-        founded_year=int((structured_founded or founded).group(1)) if (structured_founded or founded) else None,
+        founded_year=int((structured_founded or founded).group(1))
+        if (structured_founded or founded)
+        else None,
         employee_count=employees,
         employee_band=_employee_band(employees),
         gics_sector_code=gics_code,
@@ -322,6 +337,10 @@ def merge_llm_data(business: BusinessRecord, llm_data: dict[str, object]) -> Bus
     for field in ("products_services", "technologies", "keywords"):
         incoming = llm_data.get(field)
         if isinstance(incoming, list):
-            setattr(business, field, _dedupe([*getattr(business, field), *(str(item) for item in incoming)])[:30])
+            setattr(
+                business,
+                field,
+                _dedupe([*getattr(business, field), *(str(item) for item in incoming)])[:30],
+            )
     business.employee_band = business.employee_band or _employee_band(business.employee_count)
     return business

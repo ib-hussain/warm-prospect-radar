@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Outreach · Warm Prospect Radar{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><span class="eyebrow">Governed conversations</span><h1>Draft, approve and test outreach.</h1><p>Every item starts as a draft, enters a central approval queue, and can only be delivered after approval.</p></div>
+  <span class="mode-badge"><span class="live-dot"></span> {{ settings.outreach_delivery_mode|replace('_', ' ')|title }} delivery</span>
+</section>
+
+<div class="outreach-layout">
+  <section class="glass-panel content-panel">
+    <div class="section-heading"><div><span class="eyebrow">Composer</span><h2>Create a draft</h2></div><span class="step-number">01</span></div>
+    {% if businesses %}
+      <form method="post" action="{{ url_for('outreach') }}" class="stack-form" data-loading-form data-loading-message="Preparing a grounded outreach draft from verified business facts…">
+        <label class="field-label" for="outreachBusiness">Business</label>
+        <select class="text-input" id="outreachBusiness" name="business_id" required>
+          {% for business in businesses %}<option value="{{ business.id }}">{{ business.name }} · {{ business.gics_sector or 'Unclassified' }}</option>{% endfor %}
+        </select>
+        <div class="two-field-grid">
+          <div><label class="field-label" for="outreachChannel">Channel</label><select class="text-input" id="outreachChannel" name="channel" required>{% for channel in channels %}<option value="{{ channel.value }}">{{ channel.value|replace('_', ' ')|title }}</option>{% endfor %}</select></div>
+          <div><label class="field-label" for="outreachTone">Tone</label><select class="text-input" id="outreachTone" name="tone"><option>professional</option><option>warm</option><option>concise</option><option>technical</option></select></div>
+        </div>
+        <label class="field-label" for="outreachGoal">Goal</label>
+        <input class="text-input" id="outreachGoal" name="goal" type="text" maxlength="500" placeholder="e.g. introduce our data engineering service">
+        <label class="inline-check"><input type="checkbox" name="use_llm" checked {{ 'disabled' if not flags.llm_enabled else '' }}> Use LLM drafting when available; fall back deterministically</label>
+        <button class="btn btn-primary" type="submit">Create draft</button>
+      </form>
+    {% else %}
+      <div class="empty-state compact-empty"><h3>No businesses yet</h3><p>Acquire a business before creating outreach.</p><a class="btn btn-primary" href="{{ url_for('acquire') }}">Open acquisition</a></div>
+    {% endif %}
+  </section>
+
+  <section class="glass-panel content-panel">
+    <div class="section-heading"><div><span class="eyebrow">Queue</span><h2>Drafts and approvals</h2></div><span class="pill">{{ drafts|length }}</span></div>
+    {% if drafts %}
+      <div class="draft-list">
+        {% for draft in drafts %}
+          {% set business = businesses|selectattr('id', 'equalto', draft.business_id)|first %}
+          <a class="draft-row {{ 'active' if selected and selected.id == draft.id else '' }}" href="{{ url_for('outreach', selected=draft.id) }}">
+            <span class="channel-mark">{{ draft.channel.value[:2]|upper }}</span>
+            <span><strong>{{ business.name if business else 'Archived business' }}</strong><small>{{ draft.channel.value|replace('_', ' ')|title }} · {{ draft.updated_at|friendly_time }}</small></span>
+            <span class="status-pill status-{{ draft.approval_status.value }}">{{ draft.approval_status.value|replace('_', ' ') }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}<div class="small-empty"><p>No outreach drafts yet.</p><span>Create one with the composer.</span></div>{% endif %}
+  </section>
+</div>
+
+{% if selected %}
+<section class="glass-panel content-panel outreach-editor">
+  <div class="section-heading"><div><span class="eyebrow">Review desk</span><h2>{{ selected.channel.value|replace('_', ' ')|title }} draft</h2></div><span class="status-pill status-{{ selected.approval_status.value }}">{{ selected.approval_status.value|replace('_', ' ') }}</span></div>
+  <form method="post" action="{{ url_for('update_outreach_draft', draft_id=selected.id) }}" class="stack-form">
+    <div class="two-field-grid">
+      <div><label class="field-label" for="draftTarget">Target</label><input class="text-input" id="draftTarget" name="target" value="{{ selected.target or '' }}" placeholder="Email address, profile URL or integration target"></div>
+      <div><label class="field-label" for="draftSubject">Subject</label><input class="text-input" id="draftSubject" name="subject" value="{{ selected.subject or '' }}" maxlength="500"></div>
+    </div>
+    <label class="field-label" for="draftBody">Body</label>
+    <textarea class="text-input draft-body" id="draftBody" name="body" required>{{ selected.body }}</textarea>
+    <label class="field-label" for="mediaPrompt">Media prompt or instruction</label>
+    <textarea class="text-input" id="mediaPrompt" name="media_prompt" rows="3">{{ selected.media_prompt or '' }}</textarea>
+    <div class="form-actions"><button class="btn btn-quiet" type="submit" {{ 'disabled' if selected.approval_status.value == 'delivered' else '' }}>Save changes</button><small>Editing resets the item to draft.</small></div>
+  </form>
+  <div class="approval-actions">
+    {% if selected.approval_status.value in ['draft', 'rejected'] %}
+      <form method="post" action="{{ url_for('submit_outreach_draft', draft_id=selected.id) }}"><button class="btn btn-primary" type="submit">Submit for approval</button></form>
+    {% elif selected.approval_status.value == 'pending_approval' %}
+      <form method="post" action="{{ url_for('review_outreach_draft', draft_id=selected.id) }}"><input type="hidden" name="decision" value="approve"><button class="btn btn-primary" type="submit">Approve</button></form>
+      <form method="post" action="{{ url_for('review_outreach_draft', draft_id=selected.id) }}"><input type="hidden" name="decision" value="reject"><button class="btn btn-quiet" type="submit">Reject for revision</button></form>
+    {% elif selected.approval_status.value == 'approved' %}
+      <form method="post" action="{{ url_for('deliver_outreach_draft', draft_id=selected.id) }}" data-confirm="Deliver this approved item using {{ settings.outreach_delivery_mode|replace('_', ' ') }} mode?" data-loading-form data-loading-message="Delivering the approved outreach through the configured guarded provider…"><button class="btn btn-primary" type="submit" {{ 'disabled' if not flags.external_delivery_enabled else '' }}>{{ 'Simulate delivery' if settings.outreach_delivery_mode == 'dry_run' else 'Deliver approved item' }}</button></form>
+    {% endif %}
+    <span class="muted">Provider: {{ selected.provider or 'not selected' }}{% if selected.provider_message_id %} · {{ selected.provider_message_id }}{% endif %}</span>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -20,7 +20,9 @@ def business_with_size(name: str, employees: int) -> BusinessRecord:
         products_services=["Software"],
         source_urls=[f"https://{name.lower()}.example"],
         contacts=[ContactPoint(kind="email", value=f"hello@{name.lower()}.example")],
-        social_profiles=[SocialProfile(platform=SocialPlatform.LINKEDIN, url="https://linkedin.com/company/test")],
+        social_profiles=[
+            SocialProfile(platform=SocialPlatform.LINKEDIN, url="https://linkedin.com/company/test")
+        ],
     )
 
 
@@ -41,4 +43,3 @@ def test_response_evidence_increases_prospect_score():
     assert replies.response_strength > no_response.response_strength
     assert replies.prospect_score > no_response.prospect_score
     assert any("65%" in line for line in replies.explanation)
-

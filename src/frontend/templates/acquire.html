@@ -3,12 +3,13 @@
 {% block content %}
 <section class="page-heading acquire-heading">
   <div><span class="eyebrow">New acquisition</span><h1>Point the radar at a public source.</h1><p>The crawler opens the seed page, prioritises About and company pages, follows same-site evidence, then applies extraction fallbacks.</p></div>
-  <span class="mode-badge"><span class="live-dot"></span> Synchronous mode</span>
+  <span class="mode-badge"><span class="live-dot"></span> {{ 'Synchronous mode' if acquisition_enabled else 'Feature disabled' }}</span>
 </section>
 
 <div class="acquire-grid">
   <section class="glass-panel acquisition-form-card">
     <div class="section-heading"><div><span class="eyebrow">Target</span><h2>Acquire a business</h2></div><span class="step-number">01</span></div>
+    {% if not acquisition_enabled %}<div class="security-note"><span>!</span><p><strong>Acquisition is switched off</strong>Enable it under Settings → Feature controls before starting a run.</p></div>{% endif %}
     <form method="post" action="{{ url_for('acquire') }}" class="acquisition-form" data-loading-form data-loading-message="Opening the source, prioritising About pages and preparing extraction fallbacks…">
       <label class="field-label" for="businessName">Business name <small>optional but useful</small></label>
       <input class="text-input" id="businessName" name="business_name" type="text" maxlength="160" placeholder="e.g. Apple">
@@ -19,11 +20,11 @@
       <div class="scope-card">
         <div><span class="scope-icon">◎</span><span><strong>Same-site crawl</strong><small>Up to {{ settings.scraper_max_pages }} pages and depth {{ settings.scraper_max_depth }}</small></span></div>
         <div><span class="scope-icon">JS</span><span><strong>Rendering fallback</strong><small>{{ 'Enabled' if settings.scraper_js_fallback else 'Disabled' }} for sparse JavaScript pages</small></span></div>
-        <div><span class="scope-icon">AI</span><span><strong>Structured enrichment</strong><small>{{ settings.ollama_model }} first, Together AI fallback</small></span></div>
+        <div><span class="scope-icon">AI</span><span><strong>Structured enrichment</strong><small>{{ settings.ollama_model }} first, Together AI fallback · {{ 'on' if feature_flags.llm_enabled else 'off' }}</small></span></div>
         <div><span class="scope-icon">V</span><span><strong>Immutable evidence</strong><small>Raw local snapshot plus structured {{ backend_name }} record</small></span></div>
       </div>
 
-      <button class="btn btn-primary wide-button" type="submit">Start acquisition <span aria-hidden="true">→</span></button>
+      <button class="btn btn-primary wide-button" type="submit" {{ 'disabled' if not acquisition_enabled else '' }}>Start acquisition <span aria-hidden="true">→</span></button>
       <p class="form-footnote">Only publicly accessible sources are acquired. Login, cookies, CAPTCHAs and access controls are not bypassed.</p>
     </form>
   </section>
@@ -51,4 +52,3 @@
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/acquire.js') }}" defer></script>{% endblock %}
-

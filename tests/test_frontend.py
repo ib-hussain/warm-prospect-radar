@@ -56,6 +56,8 @@ def app(tmp_path):
         ("/acquire", b"Wikipedia starters"),
         ("/progress", b"Acquisition progress"),
         ("/settings", b"Runtime settings"),
+        ("/outreach", b"Draft, approve and test outreach"),
+        ("/assistant", b"Ask the radar"),
         ("/api/health", b'"status":"ok"'),
         ("/api/businesses", b"Acme Robotics"),
     ],
@@ -79,3 +81,41 @@ def test_unknown_business_returns_custom_404(app):
     assert response.status_code == 404
     assert b"Signal not found" in response.data
 
+
+def test_outreach_and_assistant_workflows(app):
+    business = app.extensions["test_business"]
+    client = app.test_client()
+    response = client.post(
+        "/outreach",
+        data={
+            "business_id": str(business.id),
+            "channel": "email",
+            "target": "hello@acme.example",
+            "subject": "Test",
+            "body": "A manually supplied draft.",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"A manually supplied draft" in response.data
+
+    response = client.post(
+        "/api/assistant",
+        json={"question": "What is Acme Robotics?"},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["exchange"]["provider"] == "deterministic"
+
+
+def test_central_feature_switch_blocks_outreach(app):
+    client = app.test_client()
+    response = client.post(
+        "/settings/features",
+        data={"acquisition_enabled": "on"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert b"Central feature controls were updated" in response.data
+    blocked = client.get("/outreach")
+    assert blocked.status_code == 403
+    assert b"Feature switched off" in blocked.data

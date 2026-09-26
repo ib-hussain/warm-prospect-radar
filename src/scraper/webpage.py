@@ -71,7 +71,9 @@ def normalize_url(raw_url: str, base_url: str | None = None) -> str:
     host = parts.hostname.lower().rstrip(".")
     port = parts.port
     netloc = host
-    if port and not ((parts.scheme == "http" and port == 80) or (parts.scheme == "https" and port == 443)):
+    if port and not (
+        (parts.scheme == "http" and port == 80) or (parts.scheme == "https" and port == 443)
+    ):
         netloc = f"{host}:{port}"
     clean_query = [
         (key, value)
@@ -199,19 +201,27 @@ class WebScraper:
                         break
                     target = normalize_url(location, target)
                     if not _public_host(target):
-                        raise ScrapeError("A redirect targeted a private, reserved, or local address.")
+                        raise ScrapeError(
+                            "A redirect targeted a private, reserved, or local address."
+                        )
                     if not self._allowed(target):
                         raise ScrapeError(f"robots.txt does not permit redirected target {target}")
                 else:
                     raise ScrapeError(f"Too many redirects while acquiring {url}")
                 if response.status_code in RETRYABLE_STATUS and attempt + 1 < attempts:
                     retry_after = response.headers.get("retry-after", "")
-                    delay = min(10.0, float(retry_after)) if retry_after.isdigit() else 0.6 * (2**attempt)
+                    delay = (
+                        min(10.0, float(retry_after))
+                        if retry_after.isdigit()
+                        else 0.6 * (2**attempt)
+                    )
                     time.sleep(delay + random.uniform(0, 0.2))
                     continue
                 response.raise_for_status()
                 content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
-                if content_type and not any(token in content_type for token in ("html", "xhtml", "text/plain")):
+                if content_type and not any(
+                    token in content_type for token in ("html", "xhtml", "text/plain")
+                ):
                     raise ScrapeError(f"Unsupported content type {content_type} at {url}")
                 return FetchResult(
                     html=response.text,
@@ -239,6 +249,28 @@ class WebScraper:
                     launch_options["executable_path"] = self.settings.playwright_executable_path
                 browser = playwright.chromium.launch(**launch_options)
                 page = browser.new_page(user_agent=self.settings.scraper_user_agent)
+                host_safety: dict[str, bool] = {}
+
+                def guard_request(route: object, request: object) -> None:
+                    request_url = str(getattr(request, "url", ""))
+                    scheme = urlsplit(request_url).scheme.lower()
+                    if scheme in {"about", "blob", "data"}:
+                        route.continue_()
+                        return
+                    try:
+                        normalized = normalize_url(request_url)
+                        host = urlsplit(normalized).hostname or ""
+                        if host not in host_safety:
+                            host_safety[host] = _public_host(normalized)
+                        allowed = host_safety[host]
+                    except (ValueError, ScrapeError):
+                        allowed = False
+                    if allowed:
+                        route.continue_()
+                    else:
+                        route.abort("blockedbyclient")
+
+                page.route("**/*", guard_request)
                 response = page.goto(
                     url,
                     wait_until="domcontentloaded",
@@ -247,6 +279,10 @@ class WebScraper:
                 page.wait_for_timeout(700)
                 html = page.content()
                 final_url = normalize_url(page.url)
+                if not _public_host(final_url):
+                    raise ScrapeError(
+                        "JavaScript rendering redirected to a private, reserved, or local address."
+                    )
                 status = response.status if response else 200
                 browser.close()
             return FetchResult(
@@ -265,12 +301,16 @@ class WebScraper:
         soup = BeautifulSoup(html, "html.parser")
         visible = soup.get_text(" ", strip=True)
         script_count = len(soup.find_all("script"))
-        markers = ("enable javascript", "javascript is required", "__next_data__", "id=\"root\"")
-        return len(visible) < 240 and (script_count >= 3 or any(marker in html.lower() for marker in markers))
+        markers = ("enable javascript", "javascript is required", "__next_data__", 'id="root"')
+        return len(visible) < 240 and (
+            script_count >= 3 or any(marker in html.lower() for marker in markers)
+        )
 
     def fetch(self, url: str) -> FetchResult:
         if not _public_host(url):
-            raise ScrapeError("The target resolves to a private, reserved, or local network address.")
+            raise ScrapeError(
+                "The target resolves to a private, reserved, or local network address."
+            )
         if not self._allowed(url):
             raise ScrapeError(f"robots.txt does not permit acquisition of {url}")
         result = self._http_fetch(url)

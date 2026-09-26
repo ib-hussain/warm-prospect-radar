@@ -5,18 +5,19 @@
   <div class="hero-copy">
     <span class="eyebrow"><span class="live-dot"></span> Scraper command centre</span>
     <h1>Find the signal before starting the conversation.</h1>
-    <p>Acquire public company data, preserve every source snapshot, and review explainable prospect signals before any outreach is drafted.</p>
+    <p>Acquire public company data, preserve every source snapshot, draft governed outreach, and ask questions across the central prospect database.</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="{{ url_for('acquire') }}">Acquire a business <span aria-hidden="true">↗</span></a>
       <a class="btn btn-quiet" href="{{ url_for('businesses') }}">Review radar</a>
+      {% if feature_flags.outreach_enabled %}<a class="btn btn-quiet" href="{{ url_for('outreach') }}">Open outreach</a>{% endif %}
     </div>
   </div>
   <div class="hero-radar-card" aria-label="Current operating mode">
     <div class="mini-radar" aria-hidden="true"><span></span><i></i><b></b></div>
     <div>
       <span class="tiny-label">Operating mode</span>
-      <strong>Acquisition + review</strong>
-      <p>Manual refresh · Draft outreach off</p>
+      <strong>Full workspace</strong>
+      <p>Feature controls on · {{ delivery_mode|replace('_', ' ') }} delivery</p>
     </div>
   </div>
 </section>
@@ -26,6 +27,11 @@
     <span class="stat-icon purple">B</span>
     <div><span class="stat-value">{{ stats.businesses }}</span><span class="stat-label">Active businesses</span></div>
     <span class="stat-meta">shared records</span>
+  </article>
+  <article class="stat-card glass-panel">
+    <span class="stat-icon purple">A</span>
+    <div><span class="stat-value">{{ stats.pending_approvals }}</span><span class="stat-label">Awaiting approval</span></div>
+    <span class="stat-meta">central queue</span>
   </article>
   <article class="stat-card glass-panel">
     <span class="stat-icon blue">R</span>
@@ -92,4 +98,3 @@
   </aside>
 </div>
 {% endblock %}
-

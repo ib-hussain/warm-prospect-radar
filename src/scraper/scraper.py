@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from src.config import Settings
 from src.database import Repository
 from src.models import BusinessRecord, RunStatus, ScrapeRun
-from src.scoring import apply_scores
+from src.scoring import apply_scores, summarize_interactions
 from src.scraper.extractor import deterministic_extract, merge_llm_data
 from src.scraper.llm import LLMExtractor
 from src.scraper.social import acquire_discovered_profiles
@@ -70,11 +70,19 @@ class BusinessScrapePipeline:
                 contacts = {(item.kind, item.value): item for item in business.contacts}
                 contacts.update({(item.kind, item.value): item for item in enriched.contacts})
                 business.contacts = list(contacts.values())
-                profiles = {(str(item.platform), item.url): item for item in business.social_profiles}
-                profiles.update({(str(item.platform), item.url): item for item in enriched.social_profiles})
+                profiles = {
+                    (str(item.platform), item.url): item for item in business.social_profiles
+                }
+                profiles.update(
+                    {(str(item.platform), item.url): item for item in enriched.social_profiles}
+                )
                 business.social_profiles = list(profiles.values())
-                business.source_urls = list(dict.fromkeys([*business.source_urls, *enriched.source_urls]))
-                business.technologies = list(dict.fromkeys([*business.technologies, *enriched.technologies]))
+                business.source_urls = list(
+                    dict.fromkeys([*business.source_urls, *enriched.source_urls])
+                )
+                business.technologies = list(
+                    dict.fromkeys([*business.technologies, *enriched.technologies])
+                )
 
             run.pages_attempted = len(pages)
             run.pages_succeeded = len(good_pages)
@@ -107,13 +115,20 @@ class BusinessScrapePipeline:
                 known_contacts = {(item.kind, item.value): item for item in existing.contacts}
                 known_contacts.update({(item.kind, item.value): item for item in business.contacts})
                 business.contacts = list(known_contacts.values())
-                known_social = {(str(item.platform), item.url): item for item in existing.social_profiles}
-                known_social.update({(str(item.platform), item.url): item for item in business.social_profiles})
+                known_social = {
+                    (str(item.platform), item.url): item for item in existing.social_profiles
+                }
+                known_social.update(
+                    {(str(item.platform), item.url): item for item in business.social_profiles}
+                )
                 business.social_profiles = list(known_social.values())
-                business.source_urls = list(dict.fromkeys([*existing.source_urls, *business.source_urls]))
+                business.source_urls = list(
+                    dict.fromkeys([*existing.source_urls, *business.source_urls])
+                )
 
             business.updated_at = datetime.now(UTC)
-            business = apply_scores(business)
+            interactions = self.repository.list_interactions(business.id, limit=10_000)
+            business = apply_scores(business, summarize_interactions(interactions))
             self.repository.save_business(business)
             run.business_id = business.id
             previous = self.repository.list_snapshots(business.id)

@@ -8,7 +8,8 @@
   </div>
   <div class="detail-actions">
     {% if business.website %}<a class="btn btn-quiet" href="{{ business.website }}" target="_blank" rel="noopener noreferrer">Open source ↗</a>{% endif %}
-    <form method="post" action="{{ url_for('refresh_business', business_id=business.id) }}" data-loading-form data-loading-message="Refreshing the source, prioritising About pages and checking extraction fallbacks…"><button class="btn btn-primary" type="submit">Refresh record</button></form>
+    {% if feature_flags.outreach_enabled %}<a class="btn btn-quiet" href="{{ url_for('outreach') }}">Draft outreach</a>{% endif %}
+    <form method="post" action="{{ url_for('refresh_business', business_id=business.id) }}" data-loading-form data-loading-message="Refreshing the source, prioritising About pages and checking extraction fallbacks…"><button class="btn btn-primary" type="submit" {{ 'disabled' if not feature_flags.acquisition_enabled else '' }}>Refresh record</button></form>
     <form method="post" action="{{ url_for('archive_business', business_id=business.id) }}" data-confirm="Archive {{ business.name }}? Its snapshots will be retained."><button class="icon-danger" type="submit" aria-label="Archive {{ business.name }}">Archive</button></form>
   </div>
 </section>
@@ -20,7 +21,7 @@
   </article>
   <article class="glass-panel score-card">
     <div class="score-ring purple-ring" style="--score: {{ business.prospect_score }}"><span>{{ '%.1f'|format(business.prospect_score) }}</span></div>
-    <div><span class="eyebrow">Prospect score</span><h2>Response + difficulty value</h2><p>Response evidence will dominate after outreach data is enabled.</p></div>
+    <div><span class="eyebrow">Prospect score</span><h2>Response + difficulty value</h2><p>Recorded outreach attempts and replies update this score immediately.</p></div>
   </article>
   <article class="glass-panel score-card slim-score">
     <div><span class="eyebrow">Data depth</span><strong class="large-number">{{ '%.0f'|format(business.data_completeness) }}%</strong><span class="full-meter"><i style="--value: {{ business.data_completeness }}%"></i></span><p>Coverage across ten core research fields.</p></div>
@@ -44,6 +45,13 @@
       </dl>
     </section>
 
+    {% if feature_flags.outreach_enabled %}
+    <section class="glass-panel content-panel">
+      <div class="section-heading"><div><span class="eyebrow">Conversation pipeline</span><h2>Outreach for {{ business.name }}</h2></div><a class="text-link" href="{{ url_for('outreach') }}">Open approval desk →</a></div>
+      {% if drafts %}<div class="draft-list compact-drafts">{% for draft in drafts %}<a class="draft-row" href="{{ url_for('outreach', selected=draft.id) }}"><span class="channel-mark">{{ draft.channel.value[:2]|upper }}</span><span><strong>{{ draft.subject or draft.channel.value|replace('_', ' ')|title }}</strong><small>{{ draft.updated_at|friendly_time }}</small></span><span class="status-pill status-{{ draft.approval_status.value }}">{{ draft.approval_status.value|replace('_', ' ') }}</span></a>{% endfor %}</div>{% else %}<p class="muted">No draft has been created for this business.</p>{% endif %}
+    </section>
+    {% endif %}
+
     <section class="glass-panel content-panel">
       <div class="section-heading"><div><span class="eyebrow">Evidence</span><h2>Contacts and public profiles</h2></div><span class="pill">{{ business.contacts|length + business.social_profiles|length }} observations</span></div>
       <div class="evidence-columns">
@@ -51,6 +59,20 @@
         <div><h3>Social profiles</h3>{% if business.social_profiles %}<ul class="evidence-list">{% for profile in business.social_profiles %}<li><span class="evidence-icon">{{ profile.platform.value[:1]|upper }}</span><div><a href="{{ profile.url }}" target="_blank" rel="noopener noreferrer"><strong>{{ profile.platform.value|title }}</strong></a><small>{{ profile.handle or profile.url|hostname }} · {{ '%.0f'|format(profile.confidence * 100) }}% confidence</small></div></li>{% endfor %}</ul>{% else %}<p class="muted">No linked social profiles observed.</p>{% endif %}</div>
       </div>
     </section>
+
+    {% if feature_flags.outreach_enabled %}
+    <section class="glass-panel content-panel">
+      <div class="section-heading compact"><div><span class="eyebrow">Response evidence</span><h2>Record interaction</h2></div><span class="pill">{{ interactions|length }}</span></div>
+      <form method="post" action="{{ url_for('record_interaction', business_id=business.id) }}" class="stack-form compact-form">
+        <label class="field-label" for="interactionKind">Type</label>
+        <select class="text-input" id="interactionKind" name="kind" required>{% for kind in interaction_kinds %}<option value="{{ kind.value }}">{{ kind.value|replace('_', ' ')|title }}</option>{% endfor %}</select>
+        <label class="field-label" for="interactionChannel">Channel</label><input class="text-input" id="interactionChannel" name="channel" placeholder="email, LinkedIn, phone…">
+        <label class="field-label" for="interactionSummary">Summary</label><textarea class="text-input" id="interactionSummary" name="summary" rows="3" placeholder="What happened?"></textarea>
+        <button class="btn btn-primary" type="submit">Record and rescore</button>
+      </form>
+      {% if interactions %}<ol class="interaction-list">{% for interaction in interactions[:8] %}<li><span class="run-status status-completed"></span><div><strong>{{ interaction.kind.value|replace('_', ' ')|title }}</strong><small>{{ interaction.channel or 'unspecified channel' }} · {{ interaction.occurred_at|friendly_time }}</small><p>{{ interaction.summary or 'No summary supplied.' }}</p></div></li>{% endfor %}</ol>{% endif %}
+    </section>
+    {% endif %}
 
     <section class="glass-panel content-panel">
       <div class="section-heading"><div><span class="eyebrow">Classification</span><h2>Products, technology and keywords</h2></div></div>

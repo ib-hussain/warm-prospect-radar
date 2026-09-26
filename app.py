@@ -13,4 +13,3 @@ if __name__ == "__main__":
         debug=settings.app_debug,
         use_reloader=settings.app_debug,
     )
-

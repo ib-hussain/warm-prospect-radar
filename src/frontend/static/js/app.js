@@ -49,8 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   document.querySelectorAll("form[data-loading-form]").forEach((form) => {
-    form.addEventListener("submit", () => {
-      if (!form.checkValidity() || !overlay) return;
+    form.addEventListener("submit", (event) => {
+      if (event.defaultPrevented || !form.checkValidity() || !overlay) return;
       overlay.classList.remove("hidden");
       overlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
@@ -63,7 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
       form.querySelectorAll("button, input, select").forEach((control) => {
         control.setAttribute("aria-disabled", "true");
       });
+      form.querySelectorAll("button[type='submit']").forEach((button) => {
+        button.disabled = true;
+      });
     });
   });
 });
-
