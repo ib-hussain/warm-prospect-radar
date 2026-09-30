@@ -1,3 +1,4 @@
+-- Active: 1790784650663@@aws-0-ap-northeast-1.pooler.supabase.com@5432@postgres
 -- Upgrade an earlier scraper-first Warm Prospect Radar database to the
 -- central, userless full-workspace schema. Run once, then run functions_v2.sql.
 

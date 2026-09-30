@@ -1,3 +1,4 @@
+-- Active: 1790784650663@@aws-0-ap-northeast-1.pooler.supabase.com@5432@postgres
 -- Warm Prospect Radar clean-install schema (central userless workspace)
 -- Run this file first in the Supabase SQL editor, then run functions_v2.sql.
 -- The operational model keeps businesses at the centre with acquisition, contact,
